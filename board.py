@@ -156,6 +156,7 @@ class Board():
                 else:
                     break
             word = ''.join(self.board[t:position[0],position[1]]) + letter + ''.join(self.board[position[0]+1:b,position[1]])
+            return word, t
         else:
             l, r = position[1], position[1]
             while l > 0:
@@ -169,29 +170,35 @@ class Board():
                 else:
                     break
             word = ''.join(self.board[position[0], l:position[1]]) + letter + ''.join(self.board[position[0], r+1:position[1]])
-        return word
+            return word, l
 
     def checkValidWord(self,word):
         # Check if a word is in official scrabble dictionary
         return word.upper() in self.validWords
     
+    def getAdjacentWords(self,word,position,across=True):
+        # Return dictionary of words formed by placement of main word, key is start position
+        words = {}
+        if across:
+            for x, i in enumerate(range(position[1], position[1] + len(word))):
+                res, start = self.expandPosition(word[x], (position[0], i), across=True)
+                if len(res) > 1:
+                    words[(start,i)] = res
+        else:
+            for x, j in enumerate(range(position[0], position[0] + len(word))):
+                res, start = self.expandPosition(word[x], (j, position[1]), across=False)
+                if len(res) > 1:
+                    words[(j,start)] = res
+        return words
+
     def checkWordPlacement(self,word,position,across=True):
         # Check if given word can be placed on board in given position
         assert self.checkValidWord(word), "'{}' is not a valid word".format(word)
 
         # Check validity of all words that are created by touching this word
-        wordList = []
-        if across:
-            for x, i in enumerate(range(position[1],position[1] + len(word))):
-                res = self.expandPosition(word[x],(position[0],i),across=True)
-                if len(res) > 1:
-                    wordList.append(res)
-        else:
-            for x, j in enumerate(range(position[0],position[0] + len(word))):
-                res = self.expandPosition(word[x],(j,position[1]),across=False)
-                if len(res) > 1:
-                    wordList.append(res)
-        return all([self.checkValidWord(x) for x in wordList])
+        words = self.getAdjacentWords(word,position,across=across)
+        
+        return all([self.checkValidWord(x) for x in words.values()])
     
     def tabulateScore(self,letter,score,position,bonus):
         if position in self.activeTiles:
@@ -217,10 +224,52 @@ class Board():
                 value -= 1
         return score
 
+    def scoreWord(self,word,position,across=True,place=False):
+        score = 0
+        bonus = {2: 0, 3: 0}
+
+        if across:
+            for x, i in enumerate(range(position[1], position[1] + len(word))):
+                score, bonus = self.tabulateScore(word[x],score,(position[0],i),bonus)
+                if place:
+                    self.board[position[0], i] = word[x]
+                    self.activeTiles[(position[0], i)] = word[x]
+
+            score = self.applyBonus(score, bonus)
+                
+        else:
+            for x, j in enumerate(range(position[0], position[0] + len(word))):
+                score, bonus = self.tabulateScore(word[x], score, (j, position[1]), bonus)
+                if place:
+                    self.board[j,position[1]] = word[x]
+                    self.activeTiles[(j, position[1])] = word[x]
+            
+            score = self.applyBonus(score, bonus)
+        
+        return score
+
+    def checkAnchoring(self,word,position,across=True):
+        # Ensure word placement is valid
+        anchored = False
+        if len(self.activeTiles) == 0:
+            if across and ((7,7) in [(position[0],j) for j in range(position[1],position[1]+len(word))]):
+                anchored = True
+            elif not across and ((7,7) in [(i,position[1]) for i in range(position[0],position[0]+len(word))]):
+                anchored = True
+        elif across:
+            if any([(letter != '') for letter in self.board[position[0],position[1]:position[1]+len(word)]]) or (len(self.getAdjacentWords(word,position,across=True)) != 0):
+                anchored = True
+        else:
+            if any([(letter != '') for letter in self.board[position[0]:position[0]+len(word),position[1]]]) or (len(self.getAdjacentWords(word,position,across=False)) != 0):
+                anchored = True
+
+        return anchored
 
     def placeWord(self,word,position,across=True):
         word = word.upper()
         # Place word on board
+        assert self.checkAnchoring(word,position,across=across), "Word is not anchored properly"
+
         if across:
             assert position[1] + len(word) - 1 <= 14, "'{}' does not fit on board".format(word)
         else:
@@ -228,34 +277,25 @@ class Board():
         assert self.checkWordPlacement(word,position,across=across), "'{}' cannot be placed on board".format(word)
 
         score = 0
-        bonus = {2:0,3:0}
+        adjWords = self.getAdjacentWords(word,position,across=across)
+        for pos, subWord in adjWords.items():
+            score += self.scoreWord(subWord,pos,across=not across)
 
-        if across:
-            for x, i in enumerate(range(position[1], position[1] + len(word))):
-                self.board[position[0],i] = word[x]
-                score, bonus = self.tabulateScore(word[x],score,(position[0],i),bonus)
-                self.activeTiles[(position[0], i)] = word[x]
+        return score + self.scoreWord(word,position,across=across,place=True)
 
-            score = self.applyBonus(score, bonus)
-                
-        else:
-            for x, j in enumerate(range(position[0], position[0] + len(word))):
-                self.board[j,position[1]] = word[x]
-                score, bonus = self.tabulateScore(word[x], score, (j, position[1]), bonus)
-                self.activeTiles[(j, position[1])] = word[x]
-            
-            score = self.applyBonus(score, bonus)
-        
-        return score
-    
 
 if __name__ == "__main__":
     b = Board()
     print(b.placeWord('here',(7,6)))
+    b.showBoard()
     print(b.placeWord('here',(8,5)))
+    b.showBoard()
     print(b.placeWord('her',(9,4)))
+    b.showBoard()
     print(b.placeWord('house',(9,4),across=False))
+    b.showBoard()
     print(b.placeWord('heres',(7,6)))
+    b.showBoard()
     print(b.placeWord('said',(14,4)))
     b.showBoard()
 
