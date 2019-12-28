@@ -78,8 +78,8 @@ class Board():
         self.doubleWords = set([(7,7),(1,1),(2,2),(3,3),(4,4),(13,13),(12,12),(11,11),(10,10),
                                 (1,13),(2,12),(3,11),(4,10),(13,1),(12,2),(11,3),(10,4)])
         self.tripleWords = set([(0,0),(0,14),(14,14),(14,0),(7,0),(0,7),(14,7),(7,14)])
-
         self.activeTiles = {}
+        self.blanksMap = {}
 
     def pickTile(self):
         # Randomly pick tile and remove from tile set
@@ -89,6 +89,9 @@ class Board():
         return ret
 
     def showBoard(self):
+        plt.close()
+        plt.ion()
+        plt.show()
         fig, ax = plt.subplots(1,figsize=(8,8))
         plt.axis("off")
         ax.set_xlim(-15,self.size*10 + 15)
@@ -139,8 +142,6 @@ class Board():
         if (7,7) not in self.activeTiles:
             ax.scatter(75,85,marker='*',s=400,c='k',zorder=100)
 
-        plt.show()
-
     def expandPosition(self,letter,position,across=True):
         # Find vertical or horizontal sequence of letters at this position
         if across:
@@ -160,12 +161,12 @@ class Board():
         else:
             l, r = position[1], position[1]
             while l > 0:
-                if self.board[l-1,position[0]] != '':
+                if self.board[position[0],l-1] != '':
                     l -= 1
                 else:
                     break
             while r < self.board.shape[1] - 1:
-                if self.board[r+1,position[0]] != '':
+                if self.board[position[0],r+1] != '':
                     r += 1
                 else:
                     break
@@ -181,11 +182,15 @@ class Board():
         words = {}
         if across:
             for x, i in enumerate(range(position[1], position[1] + len(word))):
+                if (position[0],i) in self.activeTiles:
+                    continue
                 res, start = self.expandPosition(word[x], (position[0], i), across=True)
                 if len(res) > 1:
                     words[(start,i)] = res
         else:
             for x, j in enumerate(range(position[0], position[0] + len(word))):
+                if (j, position[1]) in self.activeTiles:
+                    continue
                 res, start = self.expandPosition(word[x], (j, position[1]), across=False)
                 if len(res) > 1:
                     words[(j,start)] = res
@@ -227,13 +232,17 @@ class Board():
     def scoreWord(self,word,position,across=True,place=False):
         score = 0
         bonus = {2: 0, 3: 0}
+        uniqueTiles = 0
 
         if across:
             for x, i in enumerate(range(position[1], position[1] + len(word))):
                 score, bonus = self.tabulateScore(word[x],score,(position[0],i),bonus)
                 if place:
+                    if (position[0],i) not in self.activeTiles:
+                        uniqueTiles += 1
                     self.board[position[0], i] = word[x]
                     self.activeTiles[(position[0], i)] = word[x]
+                    
 
             score = self.applyBonus(score, bonus)
                 
@@ -241,16 +250,19 @@ class Board():
             for x, j in enumerate(range(position[0], position[0] + len(word))):
                 score, bonus = self.tabulateScore(word[x], score, (j, position[1]), bonus)
                 if place:
+                    if (j, position[1]) not in self.activeTiles:
+                        uniqueTiles += 1
                     self.board[j,position[1]] = word[x]
                     self.activeTiles[(j, position[1])] = word[x]
             
             score = self.applyBonus(score, bonus)
         
-        return score
+        return score + (uniqueTiles == 7)*50
 
     def checkAnchoring(self,word,position,across=True):
         # Ensure word placement is valid
         anchored = False
+
         if len(self.activeTiles) == 0:
             if across and ((7,7) in [(position[0],j) for j in range(position[1],position[1]+len(word))]):
                 anchored = True
@@ -258,10 +270,14 @@ class Board():
                 anchored = True
         elif across:
             if any([(letter != '') for letter in self.board[position[0],position[1]:position[1]+len(word)]]) or (len(self.getAdjacentWords(word,position,across=True)) != 0):
-                anchored = True
+                if not ((position[1] - 1 >= 0 and self.board[position[0],position[1]-1] != '') or \
+                        (position[1] + len(word) <= self.size and self.board[position[0],position[1]+len(word)] != '')):
+                    anchored = True
         else:
             if any([(letter != '') for letter in self.board[position[0]:position[0]+len(word),position[1]]]) or (len(self.getAdjacentWords(word,position,across=False)) != 0):
-                anchored = True
+                if not ((position[0] - 1 >= 0 and self.board[position[0]-1,position[1]] != '') or \
+                        (position[0] + len(word) <= self.size and self.board[position[0]+len(word),position[1]] != '')):
+                    anchored = True
 
         return anchored
 
