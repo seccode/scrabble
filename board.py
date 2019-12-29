@@ -6,7 +6,6 @@ class Board():
     def __init__(self,size=15):
         self.size = size
         self.board = np.full(shape=(size,size),fill_value='')
-        self.tilesLeft = 100
         self.tileScores = {
                             ' ':0,
                             'A':1,
@@ -69,6 +68,7 @@ class Board():
         for key, value in self.tileCount.items():
             self.tiles += [key]*value
         np.random.shuffle(self.tiles)
+        self.tilesLeft = len(self.tiles)
         self.validWords = set(open('dictionary.txt','r').read().split('\n'))
 
         # Tile bonuses
@@ -162,9 +162,8 @@ class Board():
         # Add star at middle
         if (7,7) not in self.activeTiles:
             ax.scatter(75,85,marker='*',s=400,c='k',zorder=100)
-        
-        while True:
-            plt.pause(10)
+
+        plt.pause(.1)
 
     def expandPosition(self,letter,position,across=True):
         # Find vertical or horizontal sequence of letters at this position
@@ -227,6 +226,15 @@ class Board():
         # Check validity of all words that are created by touching this word
         words = self.getAdjacentWords(word,position,across=across)
         
+        if across:
+            for x, j in enumerate(range(position[1],position[1]+len(word))):
+                if self.board[position[0],j] != '' and self.board[position[0],j] != word[x]:
+                    return False
+        else:
+            for x, i in enumerate(range(position[0],position[0]+len(word))):
+                if self.board[i,position[1]] != '' and self.board[i,position[1]] != word[x]:
+                    return False
+
         return all([self.checkValidWord(x) for x in words.values()])
     
     def tabulateScore(self,letter,score,position,bonus):
@@ -324,6 +332,19 @@ class Board():
         return anchored
 
     def findScore(self,word,position,across=True,place=False,blanks={}):
+        if not place:
+            assert self.checkAnchoring(word, position, across=across), "Word is not anchored properly"
+
+            if across:
+                assert position[1] + len(word) - \
+                    1 <= 14, "'{}' does not fit on board".format(word)
+            else:
+                assert position[0] + len(word) - \
+                    1 <= 14, "'{}' does not fit on board".format(word)
+            assert self.checkWordPlacement(
+                word, position, across=across), "'{}' cannot be placed on board".format(word)
+                
+
         word = word.upper()
         # Use this function to determine the score for this move, use place=False to 
         # find score but not place move on board
@@ -359,7 +380,6 @@ if __name__ == "__main__":
     print(b.placeWord('heres',(7,6)))
     print(b.findScore('said',(14,4)))
     b.showBoard()
-
 
 
 
