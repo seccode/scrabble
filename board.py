@@ -88,15 +88,29 @@ class Board():
         self.tilesLeft -= 1
         return ret
 
-    def showBoard(self):
+    def showBoard(self,tiles=[],scores=[]):
         plt.close()
         plt.ion()
         plt.show()
         fig, ax = plt.subplots(1,figsize=(8,8))
         plt.axis("off")
-        ax.set_xlim(-15,self.size*10 + 15)
-        ax.set_ylim(-15,self.size*10 + 15)
+        ax.set_xlim(-35,self.size*10 + 45)
+        ax.set_ylim(-55,self.size*10 + 15)
         plt.gca().set_aspect('equal', adjustable='box')
+
+        if len(tiles) > 0:
+            for i in range(len(tiles)):
+                for j in range(len(tiles[i])):
+                    rect = Rectangle((j*15 - 35 + (i%2!=0)*(115),- 20 - (30)*(i>1)),15,15,
+                                    linewidth=1,edgecolor='k',facecolor='peru')
+                    ax.add_patch(rect)
+                    ax.annotate("Player {}, Score: {} ".format(i + 1, int(scores[i])), (17.5 + (i % 2 != 0)*(115), - (30)*(i > 1)),
+                                color='black', weight='bold', fontsize=12, ha='center', va='center')
+                    ax.annotate(tiles[i][j], (j*15 - 28 + (i % 2 != 0)*(115), - 13 - (30)*(i > 1)), color='white',
+                                weight='bold', fontsize=18, ha='center', va='center')
+                    ax.annotate(self.tileScores[tiles[i][j]], (j*15 - 23 + (i % 2 != 0)*(115), - 17.5 - (30)*(i>1)), color='white',
+                                weight='bold', fontsize=8, ha='center', va='center')
+
 
         for x in range(self.board.shape[0]):
             ax.annotate(str(x), (x*10 + 5, self.size*10 + 14), color='black',
@@ -111,12 +125,19 @@ class Board():
                 color = 'black'
                 weight = 8
                 subtext = ''
+                x_shift = 0
+                y_shift = 0
                 if self.board[i,j] != '':
                     tileColor = 'peru'
                     text = self.board[i,j].upper()
                     color = 'white'
-                    weight = 15
                     subtext = self.tileScores[text]
+                    if text == ' ':
+                        text = self.blanksMap[(i,j)]
+                        color = 'red'
+                    weight = 14
+                    x_shift = -1
+                    y_shift = -0.5
                 elif (i,j) in self.doubleLetters:
                     tileColor = 'lightskyblue'
                     text = 'DL'
@@ -133,14 +154,17 @@ class Board():
                 rect = Rectangle((j*10,self.size*10 - i*10),10,10,linewidth=1,edgecolor='k',facecolor=tileColor)
                 ax.add_patch(rect)
 
-                ax.annotate(text, (j*10 + 5, self.size*10 - i*10 + 5), color=color,
+                ax.annotate(text, (j*10 + 5 + x_shift, self.size*10 - i*10 + 5 + y_shift), color=color,
                             weight='bold', fontsize=weight, ha='center', va='center')
-                ax.annotate(subtext, (j*10 + 8, self.size*10 - i*10 + 2), color=color,
+                ax.annotate(subtext, (j*10 + 8, self.size*10 - i*10 + 2), color='white',
                             weight='bold', fontsize=6, ha='center', va='center')
 
         # Add star at middle
         if (7,7) not in self.activeTiles:
             ax.scatter(75,85,marker='*',s=400,c='k',zorder=100)
+        
+        while True:
+            plt.pause(10)
 
     def expandPosition(self,letter,position,across=True):
         # Find vertical or horizontal sequence of letters at this position
@@ -229,13 +253,22 @@ class Board():
                 value -= 1
         return score
 
-    def scoreWord(self,word,position,across=True,place=False):
+    def scoreWord(self,word,position,across=True,place=False,blanks={}):
         score = 0
         bonus = {2: 0, 3: 0}
         uniqueTiles = 0
 
         if across:
             for x, i in enumerate(range(position[1], position[1] + len(word))):
+                if (position[0],i) in self.blanksMap:
+                    _, bonus = self.tabulateScore(word[x],score,(position[0],i),bonus)    
+                    if place:
+                        if (position[0], i) not in self.activeTiles:
+                            uniqueTiles += 1
+                        self.board[position[0], i] = ' '
+                        self.activeTiles[(position[0], i)] = ' '
+                    continue
+
                 score, bonus = self.tabulateScore(word[x],score,(position[0],i),bonus)
                 if place:
                     if (position[0],i) not in self.activeTiles:
@@ -248,6 +281,15 @@ class Board():
                 
         else:
             for x, j in enumerate(range(position[0], position[0] + len(word))):
+                if (j,position[1]) in self.blanksMap:
+                    _, bonus = self.tabulateScore(word[x],score,(j,position[1]), bonus)
+                    if place:
+                        if (j,position[1]) not in self.activeTiles:
+                            uniqueTiles += 1
+                        self.board[j, position[1]] = ' '
+                        self.activeTiles[(j, position[1])] = ' '
+                    continue
+
                 score, bonus = self.tabulateScore(word[x], score, (j, position[1]), bonus)
                 if place:
                     if (j, position[1]) not in self.activeTiles:
@@ -281,7 +323,18 @@ class Board():
 
         return anchored
 
-    def placeWord(self,word,position,across=True):
+    def findScore(self,word,position,across=True,place=False,blanks={}):
+        word = word.upper()
+        # Use this function to determine the score for this move, use place=False to 
+        # find score but not place move on board
+        score = 0
+        adjWords = self.getAdjacentWords(word, position, across=across)
+        for pos, subWord in adjWords.items():
+            score += self.scoreWord(subWord, pos, across=not across)
+
+        return score + self.scoreWord(word, position, across=across, place=place, blanks=blanks)
+
+    def placeWord(self,word,position,across=True,blanks={}):
         word = word.upper()
         # Place word on board
         assert self.checkAnchoring(word,position,across=across), "Word is not anchored properly"
@@ -292,27 +345,19 @@ class Board():
             assert position[0] + len(word) - 1 <= 14, "'{}' does not fit on board".format(word)
         assert self.checkWordPlacement(word,position,across=across), "'{}' cannot be placed on board".format(word)
 
-        score = 0
-        adjWords = self.getAdjacentWords(word,position,across=across)
-        for pos, subWord in adjWords.items():
-            score += self.scoreWord(subWord,pos,across=not across)
-
-        return score + self.scoreWord(word,position,across=across,place=True)
-
+        for k, v in blanks.items():
+            self.blanksMap[k] = v
+            
+        return self.findScore(word,position,across=across,place=True,blanks=blanks)
 
 if __name__ == "__main__":
     b = Board()
     print(b.placeWord('here',(7,6)))
-    b.showBoard()
     print(b.placeWord('here',(8,5)))
-    b.showBoard()
     print(b.placeWord('her',(9,4)))
-    b.showBoard()
     print(b.placeWord('house',(9,4),across=False))
-    b.showBoard()
     print(b.placeWord('heres',(7,6)))
-    b.showBoard()
-    print(b.placeWord('said',(14,4)))
+    print(b.findScore('said',(14,4)))
     b.showBoard()
 
 
