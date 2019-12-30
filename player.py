@@ -58,14 +58,16 @@ class Player():
                     res[2].remove(letter)
                     blanks[(position[0]+x*(not across),position[1]+x*(across))] = letter
 
-        self.score += self.board.placeWord(word,position,across=across,blanks=blanks)
+        points = self.board.placeWord(word,position,across=across,blanks=blanks)
+        self.score += points
         for letter in res[1]:
             if letter in self.tiles:
                 self.tiles.remove(letter.upper())
             else:
                 self.tiles.remove(' ')
         self.drawTiles()
-        print(self.board.tilesLeft)
+        
+        return points
         
 
 

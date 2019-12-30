@@ -19,7 +19,6 @@ class Game():
     def startGame(self):
         canMove = [True]*self.numPlayers
         while any(canMove) and all([(len(x.tiles) > 0) for x in self.players]):
-            print("Player {} to move".format(self.turn+1))
             self.board.showBoard(tiles=[p.tiles for p in self.players],scores=self.scoreBoard)
 
             moved = False
@@ -35,7 +34,6 @@ class Game():
                         break
                     canMove = [True]*self.numPlayers
 
-                    print(-bestMove[0])
                     word = bestMove[1]
                     row = bestMove[2][0]
                     col = bestMove[2][1]
@@ -50,13 +48,13 @@ class Game():
                     direction = input("Vertical (V) or Horizontal (H): ")[0].upper()
                     print("\n")
 
-                # try:
-                print(word,(row,col),direction)
-                self.players[self.turn].move(word,(row,col),across=(direction=='H'))
-                moved = True
-                # except Exception as e:
-                #     print("\nNot a valid move, try again [{}]\n".format(e))
-                #     continue
+                try:
+                    points = self.players[self.turn].move(word,(row,col),across=(direction=='H'))
+                    moved = True
+                    print("Player {} played {} for {} points".format(self.turn + 1,word,points))
+                except Exception as e:
+                    print("\nNot a valid move, try again [{}]\n".format(e))
+                    continue
 
             self.scoreBoard[self.turn] = self.players[self.turn].score
             if self.turn == self.numPlayers - 1:

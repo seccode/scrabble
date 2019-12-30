@@ -41,7 +41,7 @@ class Board():
                     'B':2,
                     'C':2,
                     'D':4,
-                    'E':2,
+                    'E':12,
                     'F':2,
                     'G':3,
                     'H':2,
@@ -179,7 +179,7 @@ class Board():
                     b += 1
                 else:
                     break
-            word = ''.join(self.board[t:position[0],position[1]]) + letter + ''.join(self.board[position[0]+1:b,position[1]])
+            word = ''.join(self.board[t:position[0],position[1]]) + letter + ''.join(self.board[position[0]+1:b+1,position[1]])
             return word, t
         else:
             l, r = position[1], position[1]
@@ -193,7 +193,7 @@ class Board():
                     r += 1
                 else:
                     break
-            word = ''.join(self.board[position[0], l:position[1]]) + letter + ''.join(self.board[position[0], r+1:position[1]])
+            word = ''.join(self.board[position[0], l:position[1]]) + letter + ''.join(self.board[position[0], position[1]+1:r+1])
             return word, l
 
     def checkValidWord(self,word):
@@ -217,6 +217,7 @@ class Board():
                 res, start = self.expandPosition(word[x], (j, position[1]), across=False)
                 if len(res) > 1:
                     words[(j,start)] = res
+        
         return words
 
     def checkWordPlacement(self,word,position,across=True):
@@ -319,14 +320,19 @@ class Board():
             elif not across and ((7,7) in [(i,position[1]) for i in range(position[0],position[0]+len(word))]):
                 anchored = True
         elif across:
-            if any([(letter != '') for letter in self.board[position[0],position[1]:position[1]+len(word)]]) or (len(self.getAdjacentWords(word,position,across=True)) != 0):
+            if any([(letter != '') for letter in self.board[position[0],position[1]:position[1]+len(word)]]) or \
+                (len(self.getAdjacentWords(word,position,across=True)) != 0):
+                
                 if not ((position[1] - 1 >= 0 and self.board[position[0],position[1]-1] != '') or \
-                        (position[1] + len(word) <= self.size and self.board[position[0],position[1]+len(word)] != '')):
+                        (position[1] + len(word) < self.size and self.board[position[0],position[1]+len(word)] != '')):
                     anchored = True
+
         else:
-            if any([(letter != '') for letter in self.board[position[0]:position[0]+len(word),position[1]]]) or (len(self.getAdjacentWords(word,position,across=False)) != 0):
-                if not ((position[0] - 1 >= 0 and self.board[position[0]-1,position[1]] != '') or \
-                        (position[0] + len(word) <= self.size and self.board[position[0]+len(word),position[1]] != '')):
+            if any([(letter != '') for letter in self.board[position[0]:position[0]+len(word),position[1]]]) or \
+                (len(self.getAdjacentWords(word,position,across=False)) != 0):
+                
+                if not ((position[0] - 1 >= 0 and self.board[position[0]-1, position[1]] != '') or
+                        (position[0] + len(word) < self.size and self.board[position[0]+len(word), position[1]] != '')):
                     anchored = True
 
         return anchored
