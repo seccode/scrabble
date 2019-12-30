@@ -3,18 +3,20 @@ from board import Board
 from player import Player
 from solver import Solver
 import sys
+import argparse
 
 class Game():
-    def __init__(self,numPlayers=2):
+    def __init__(self, numPlayers=2, CPUCount=1):
         self.numPlayers = numPlayers
+        self.CPUCount = CPUCount
         self.scoreBoard = np.zeros(numPlayers)
         self.board = Board()
         self.players = [Player(self.board) for _ in range(numPlayers)]
         for p in self.players:
             p.drawTiles()
-
         self.turn = 0
         self.solver = Solver()
+        self.CPUTurns = [True]*CPUCount + [False]*(numPlayers-CPUCount)
     
     def startGame(self):
         canMove = [True]*self.numPlayers
@@ -24,9 +26,10 @@ class Game():
             moved = False
             while not moved:
 
+                print("Player {} to move".format(self.turn+1))
+
                 # CPU
-                # if self.turn % 2 == 0:
-                if True:
+                if self.CPUTurns[self.turn]:
                     bestMove = self.solver.solve(self.players[self.turn].tiles,self.board)
                     if not bestMove:
                         canMove[self.turn] = False
@@ -47,6 +50,7 @@ class Game():
                     col = int(input("Column to play word: "))
                     direction = input("Vertical (V) or Horizontal (H): ")[0].upper()
                     print("\n")
+
                 try:
                     points = self.players[self.turn].move(word,(row,col),across=(direction=='H'))
                     moved = True
@@ -64,7 +68,16 @@ class Game():
         print("\n\nFinal Score: {}".format(self.scoreBoard))
 
 if __name__ == "__main__":
-    g = Game(numPlayers=2)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--players',dest='players',type=int,default=2)
+    parser.add_argument('--CPU',dest='CPU',type=int,default=1)
+    args = parser.parse_args()
+    
+    assert args.players > 0 and args.players <= 5, "Number of players must be between 1-4"
+    assert args.CPU <= args.players, "Number of CPU players must be less than or equal to number of players"
+    assert args.CPU >= 0, "Number of CPU players must be greater than or equal to 0"
+
+    g = Game(numPlayers=args.players,CPUCount=args.CPU)
     g.startGame()
 
 
