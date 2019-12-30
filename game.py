@@ -73,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument('--CPU',dest='CPU',type=int,default=1)
     args = parser.parse_args()
     
-    assert args.players > 0 and args.players <= 5, "Number of players must be between 1-4"
+    assert args.players > 0 and args.players < 5, "Number of players must be between 1-4"
     assert args.CPU <= args.players, "Number of CPU players must be less than or equal to number of players"
     assert args.CPU >= 0, "Number of CPU players must be greater than or equal to 0"
 
