@@ -1,9 +1,23 @@
 from board import Board
 from player import Player
-from itertools import combinations
+from itertools import combinations, permutations
 import heapq
 
 class Solver():
+    def __init__(self):
+        self.validWords = set(open('dictionary.txt', 'r').read().split('\n'))
+
+    def stringSubsets(self,s):
+        s = sorted(s)
+        return list(set([''.join(l) for i in range(len(s)) for l in combinations(s, i+1)]))
+
+    def getCandidateWords(self,sets):
+        ret = []
+        for item in sets:
+            if item in self.board.lookupDict:
+                ret += self.board.lookupDict[item]
+        return ret
+
     def solve(self,tiles,board: Board):
         self.candidates = []
         self.board = board
@@ -11,9 +25,10 @@ class Solver():
         currLetters = tiles
         for i, row in enumerate(self.board.board):
             currLetters = ''.join(tiles + [x for x in row if x != ''])
-            options = [''.join(l) for i in range(len(currLetters),0,-1)
-                        for l in combinations(currLetters,i)]
-            validOptions = [x for x in options if self.board.checkValidWord(x)]
+
+            sets = self.stringSubsets(currLetters)
+            validOptions = self.getCandidateWords(sets)
+
             for j in range(self.board.size):
                 for word in validOptions:
                     player = Player(self.board)
@@ -26,9 +41,9 @@ class Solver():
 
         for j, col in enumerate(self.board.board.T):
             currLetters = ''.join(tiles + [x for x in col if x != ''])
-            options = [''.join(l) for i in range(len(currLetters), 0, -1)
-                        for l in combinations(currLetters, i)]
-            validOptions = [x for x in options if self.board.checkValidWord(x)]
+
+            sets = self.stringSubsets(currLetters)
+            validOptions = self.getCandidateWords(currLetters)
 
             for i in range(self.board.size):
                 for word in validOptions:

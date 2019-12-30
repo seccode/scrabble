@@ -80,6 +80,18 @@ class Board():
         self.tripleWords = set([(0,0),(0,14),(14,14),(14,0),(7,0),(0,7),(14,7),(7,14)])
         self.activeTiles = {}
         self.blanksMap = {}
+        self.preprocessDict()
+
+    def preprocessDict(self):
+        self.lookupDict = {}
+        for word in self.validWords:
+            key = ''.join(sorted(set(word)))
+            if key in self.lookupDict:
+                self.lookupDict[key].append(word)
+            else:
+                self.lookupDict[key] = [word]
+        
+
 
     def pickTile(self):
         # Randomly pick tile and remove from tile set

@@ -47,7 +47,6 @@ class Game():
                     col = int(input("Column to play word: "))
                     direction = input("Vertical (V) or Horizontal (H): ")[0].upper()
                     print("\n")
-
                 try:
                     points = self.players[self.turn].move(word,(row,col),across=(direction=='H'))
                     moved = True
